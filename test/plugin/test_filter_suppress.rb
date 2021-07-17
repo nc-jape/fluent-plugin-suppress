@@ -142,4 +142,33 @@ class SuppressFilterTest < Test::Unit::TestCase
     assert_equal({"id"=>5, "host"=>"web04", "message"=>"4 error!!"}, records[4])
     assert_equal({"id"=>6, "host"=>"web01", "message"=>"1 error!!"}, records[5])
   end
+
+  def test_emit_nested_with_missing_key
+    d = create_driver(CONFIG_WITH_NESTED_KEY)
+    es = Fluent::MultiEventStream.new
+
+    time = event_time("2012-11-22 11:22:33 UTC")
+    es.add(time + 1, {"id" => 1, "data" => {"host" => "web01", "message" => "error!!"}})
+    es.add(time + 2, {"id" => 2, "data" => {"host" => "web01", "message" => "error!!"}})
+    es.add(time + 3, {"id" => 3, "data" => {"message" => "error!!"}})
+    es.add(time + 4, {"id" => 4, "data" => {"message" => "error!!"}})
+    es.add(time + 4, {"id" => 5, "fields" => {"host" => "app01", "message" => "error!!"}})
+    es.add(time + 12, {"id" => 6, "fields" => {"host" => "web01", "message" => "error!!"}})
+    es.add(time + 13, {"id" => 7, "fields" => {"host" => "web01", "message" => "error!!"}})
+    es.add(time + 14, {"id" => 8, "fields" => {"host" => "web01", "message" => "error!!"}})
+
+    d.run(default_tag: "test.info") do
+      d.feed(es)
+    end
+    records = d.filtered_records
+
+    # assert_equal 5, records.length
+    assert_equal({"id"=>1, "data" => {"host"=>"web01", "message"=>"error!!"}}, records[0])
+    assert_equal({"id"=>2, "data" => {"host"=>"web01", "message"=>"error!!"}}, records[1])
+    assert_equal({"id" => 3, "data" => {"message" => "error!!"}}, records[2])
+    assert_equal({"id" => 4, "data" => {"message" => "error!!"}}, records[3])
+    assert_equal({"id"=>5, "fields" => {"host"=>"app01", "message"=>"error!!"}}, records[4])
+    assert_equal({"id"=>6, "fields" => {"host"=>"web01", "message"=>"error!!"}}, records[5])
+    assert_equal({"id"=>7, "fields" => {"host"=>"web01", "message"=>"error!!"}}, records[6])
+  end
 end

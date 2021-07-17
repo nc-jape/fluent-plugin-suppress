@@ -20,7 +20,17 @@ module Fluent::Plugin
       es.each do |time, record|
         if @keys
           keys = @keys.map do |key|
-            key.split(/\./).inject(record) {|r, k| r[k] }
+              keyArray = key.split(/\./)
+
+              #loops trough the nested record for k as in the key.
+              keyArray.inject(record) {|r, k|
+                # If the record does not contain the expected key, it does not match what we expect and should not be suppressed.
+                if r!=nil and r.key?(k)
+                  r[k]
+                else
+                  return es
+                end
+              }
           end
           key = tag + "\0" + keys.join("\0")
         else
